@@ -17,6 +17,8 @@ from typing import Any
 import httpx
 from mcp.server.fastmcp import FastMCP
 
+from . import plugins as _plugins
+
 # ── Version ─────────────────────────────────────────────────────────────────
 
 VERSION = "0.3.0"
@@ -120,6 +122,9 @@ def _safe_result(data: dict[str, Any], error_prefix: str = "Request failed") -> 
 # ── MCP Server ──────────────────────────────────────────────────────────────
 
 mcp = FastMCP("GenTech Agent Kit")
+
+# Auto-discover and register plugins
+_plugins.register_plugins(mcp)
 
 # ──────────────────────────────────────────────────────────────────────────
 #  TOOLS — CoinMarketCap Data
@@ -268,11 +273,14 @@ def kit_info() -> str:
         "get_trending(kind) — Gainers, losers, most visited",
         "get_dex_pairs(symbol) — DEX liquidity pair data",
     ]
+    plugins = _plugins.get_plugin_list()
     return json.dumps({
         "name": "GenTech Agent Kit",
         "version": VERSION,
         "description": "One install. Full stack. Your agent, running.",
         "tools": tools_list,
+        "plugins": len(plugins),
+        "plugins_list": [p.get("name") for p in plugins],
         "updates": "Always receiving updates — run `uv tool install --reinstall` to get the latest",
         "docs": "https://github.com/ProtoJay4789/genTech-agent-kit",
     }, indent=2)

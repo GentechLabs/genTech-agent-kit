@@ -81,6 +81,35 @@ uv sync
 uv run gentech-kit
 ```
 
+## Plugin Routing — Autonomous Tool Discovery
+
+The Agent Kit auto-discovers new tools without code changes. When we build a new GenTech service (DeFi Intelligence, Agent Registration, etc.), it gets added to the plugin system and the Kit loads it automatically.
+
+**How it works:**
+1. New GenTech package drops a `plugin.json` manifest into the `plugins/` dir
+2. Agent Kit reads the manifest at startup
+3. Plugin's `register_gentech_plugin(mcp)` function registers its tools
+4. `kit_info()` shows all active plugins
+
+**Example plugin manifest (`plugins/gentech-defi-intel/plugin.json`):**
+```json
+{
+  "name": "DeFi Intelligence",
+  "version": "0.1.0",
+  "module": "gentech_defi_intel",
+  "description": "LP health, pool rebalance, yield rankings"
+}
+```
+
+**To build a new plugin:**
+```bash
+mkdir -p plugins/your-plugin-name
+echo '{"name": "...", "version": "0.1.0", "module": "..."}' > plugins/your-plugin-name/plugin.json
+# Implement register_gentech_plugin(mcp) in your module
+```
+
+The Kit grows with GenTech. No manual wiring required.
+
 ## License
 
 MIT — GenTech Labs

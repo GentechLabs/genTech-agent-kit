@@ -20,7 +20,7 @@ _LOG = logging.getLogger("gentech-kit.plugins")
 # Plugin registry — each plugin exposes a `register(mcp)` function
 # New plugins just add themselves here or drop a plugin.json in the plugins dir.
 
-_PLUGIN_DIR = os.path.join(os.path.dirname(__file__), "plugins")
+_PLUGIN_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "plugins")
 
 
 def _discover_file_plugins() -> list[dict[str, Any]]:

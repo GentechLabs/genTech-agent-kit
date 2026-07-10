@@ -37,3 +37,55 @@ Requires: `CMC_API_KEY` env var (get one free at coinmarketcap.com/api)
 ## Host
 
 **GenTech Labs** — Payment infrastructure for AI agents
+
+---
+
+## Cost Optimization
+
+Deploy with sensible defaults that balance capability and spend:
+
+### Default Config (used by GenTech)
+
+```yaml
+# Conversation
+model: "deepseek-v4-flash"
+provider: "opencode-go"
+
+# Subagents — cheaper model for delegated tasks
+delegation:
+  max_concurrent_children: 3
+  model: "google/gemini-2.5-flash"
+  provider: "openrouter"
+```
+
+### Quick Reference
+
+| Task Type | Model | Cost Level |
+|-----------|-------|------------|
+| Main chat | deepseek-v4-flash | Free |
+| Research / Draft | gemini-2.5-flash | $ |
+| Code review / Audit | claude-sonnet-4 | $$ |
+| Cron / Scripts | pin per job or no_agent | $0 |
+| BlockRun queries | mode="free" or tier-1 | $0–0.005 |
+
+### Pattern: Pin per-cron models
+
+```python
+cronjob(action='create',
+  schedule='0 6 * * *',
+  prompt='...',
+  model={'provider': 'opencode-go', 'model': 'deepseek-v4-flash'})
+```
+
+### Pattern: Zero-cost script jobs
+
+```python
+cronjob(action='create',
+  script='/path/to/script.py',
+  no_agent=True)
+```
+
+For full Hermes cost-optimization patterns, load the `cost-optimization` skill:
+```
+skill_view(name='cost-optimization')
+```

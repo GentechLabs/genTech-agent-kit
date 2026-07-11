@@ -2,21 +2,30 @@
 
 **One install. Full stack. Your agent, running.**
 
+[![Release](https://img.shields.io/github/v/release/ProtoJay4789/genTech-agent-kit?style=flat&label=release)](https://github.com/ProtoJay4789/genTech-agent-kit/releases)
+[![License](https://img.shields.io/github/license/ProtoJay4789/genTech-agent-kit?style=flat)](LICENSE)
+[![Language](https://img.shields.io/github/languages/top/ProtoJay4789/genTech-agent-kit?style=flat)](https://github.com/ProtoJay4789/genTech-agent-kit)
+[![Skills](https://img.shields.io/badge/skills-npx%20install-blue?style=flat)](https://github.com/ProtoJay4789/genTech-agent-kit/tree/main/skills)
+[![x402](https://img.shields.io/badge/payments-x402-8A2BE2?style=flat)](https://www.x402.org)
+[![Atelier](https://img.shields.io/badge/marketplace-Atelier-000?style=flat)](https://useatelier.ai)
+
 The GenTech Agent Kit packages the entire GenTech stack into a single installable MCP server. One command gives any AI agent real-time market data, DeFi intelligence, payment rails, and agent identity infrastructure.
 
 ```bash
 uvx --from git+https://github.com/ProtoJay4789/genTech-agent-kit.git gentech-kit
 ```
 
-## Why GenTech Agent Kit?
+## Install as Agent Skills
 
-| Feature | Benefit |
-|---------|---------|
-| **Always updated** | Active development — new tools ship continuously. `uv tool install --reinstall` gets the latest. |
-| **Adaptive stack** | Modular design. Tools are discovered dynamically — the kit grows without breaking existing integrations. |
-| **x402 native** | Every API supports machine-to-machine micropayments. Pay per query, no subscription. |
-| **Open source** | MIT license. Audit, fork, extend. No vendor lock-in. |
-| **Premier distribution** | Listed on Atelier, PortalHQ, and Monad Agent Hub. Your agent finds us automatically. |
+```bash
+# Install the main skill
+npx skills add ProtoJay4789/genTech-agent-kit
+
+# Install specific skills
+npx skills add ProtoJay4789/genTech-agent-kit --skill x402-payments
+npx skills add ProtoJay4789/genTech-agent-kit --skill robinhood-chain
+npx skills add ProtoJay4789/genTech-agent-kit --skill output-enforcer
+```
 
 ## Quick Start
 
@@ -47,8 +56,33 @@ export CMC_API_KEY="your-key-here"
 |------|-------------|
 | `kit_info()` | Agent Kit version, tool list, update status |
 
-### More Coming
-DeFi Intelligence, Agent Registration, Agent Search, and Agent Arena tools ship in upcoming releases.
+### Plugins (auto-discovered)
+| Plugin | Tools | Settlement |
+|--------|-------|------------|
+| Algorand x402 Gateway | `algorand_x402_info`, `algorand_verify_payment`, `algorand_get_quote` | ALGO via GoPlausible |
+| Robinhood Chain x402 | `rh_info`, `rh_list_stocks`, `rh_get_stock`, `rh_crypto_quote`, `rh_verify_payment` | USDG via Naven Network |
+| Output Enforcer | `output_enforcer_status`, `output_enforcer_violations`, `output_enforcer_clear`, `output_enforcer_breakers` | — |
+| Pika Creative Suite | `pika_skills`, `pika_generate`, `pika_build_brand`, `pika_app_sizzle`, `pika_explainer` | — |
+
+### Demo: x402 Payment Flow
+
+```bash
+# Hit a paid endpoint without payment
+curl -i https://api.naven.network/x402-test/ping
+# → HTTP 402 Payment Required with x402 v2 challenge
+# → Network: Robinhood Chain (eip155:4663)
+# → Token: USDG ($0.0001 per query)
+```
+
+## Why GenTech Agent Kit?
+
+| Feature | Benefit |
+|---------|---------|
+| **Always updated** | Active development — new tools ship continuously. `uv tool install --reinstall` gets the latest. |
+| **Adaptive stack** | Modular design. Tools discovered dynamically — the kit grows without breaking existing integrations. |
+| **x402 native** | Every API supports machine-to-machine micropayments. Pay per query, no subscription. |
+| **Open source** | MIT license. Audit, fork, extend. No vendor lock-in. |
+| **Premier distribution** | Listed on Atelier, PortalHQ, Monad Agent Hub. Your agent finds us automatically. |
 
 ## MCP Client Setup
 
@@ -72,44 +106,10 @@ claude mcp add gentech-agent-kit \
 }
 ```
 
-## Development
-
-```bash
-git clone https://github.com/ProtoJay4789/genTech-agent-kit.git
-cd genTech-agent-kit
-uv sync
-uv run gentech-kit
-```
-
-## Plugin Routing — Autonomous Tool Discovery
-
-The Agent Kit auto-discovers new tools without code changes. When we build a new GenTech service (DeFi Intelligence, Agent Registration, etc.), it gets added to the plugin system and the Kit loads it automatically.
-
-**How it works:**
-1. New GenTech package drops a `plugin.json` manifest into the `plugins/` dir
-2. Agent Kit reads the manifest at startup
-3. Plugin's `register_gentech_plugin(mcp)` function registers its tools
-4. `kit_info()` shows all active plugins
-
-**Example plugin manifest (`plugins/gentech-defi-intel/plugin.json`):**
-```json
-{
-  "name": "DeFi Intelligence",
-  "version": "0.1.0",
-  "module": "gentech_defi_intel",
-  "description": "LP health, pool rebalance, yield rankings"
-}
-```
-
-**To build a new plugin:**
-```bash
-mkdir -p plugins/your-plugin-name
-echo '{"name": "...", "version": "0.1.0", "module": "..."}' > plugins/your-plugin-name/plugin.json
-# Implement register_gentech_plugin(mcp) in your module
-```
-
-The Kit grows with GenTech. No manual wiring required.
-
 ## License
 
 MIT — GenTech Labs
+
+## About
+
+**GenTech Labs** builds payment infrastructure for AI agents. We make it possible for agents to pay each other, subscribe to services, and earn revenue — all on-chain, all autonomously.

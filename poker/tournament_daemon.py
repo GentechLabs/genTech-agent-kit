@@ -1,0 +1,406 @@
+#!/usr/bin/env python3
+"""
+DevFun Poker — Tournament S7 Daemon. Continuous loop, no cron gaps.
+Adaptive polling: 3s when at a table (20s clock), 8s when in queue.
+PID file prevents duplicates. Sends reasoning field for tournament API.
+"""
+import json, os, sys, time, urllib.request, urllib.error, signal, random
+
+BASE_URL = "https://arena.dev.fun/api/arena"
+COMPETITION_ID = "cmrkmbltp6juswa5d4re81nt2"  # Tournament S7
+STATE_FILE = "/root/.arena-poker-state-tournament"
+CRED_FILE = "/root/.arena-credentials"
+PID_FILE = "/tmp/poker-tournament-s7.pid"
+
+# ─── Adaptive polling ───
+TABLE_POLL = 3    # seconds between polls when at a table (20s clock safe)
+QUEUE_POLL = 8    # seconds between polls when in queue (no rush)
+DEADLINE_BUFFER = 4  # seconds before deadline to safe-action
+
+
+def write_pid():
+    with open(PID_FILE, 'w') as f:
+        f.write(str(os.getpid()))
+
+
+def check_pid():
+    if os.path.exists(PID_FILE):
+        with open(PID_FILE) as f:
+            try:
+                old_pid = int(f.read().strip())
+                os.kill(old_pid, 0)
+                print(f"Daemon already running (PID {old_pid}). Exiting.", flush=True)
+                sys.exit(0)
+            except (OSError, ValueError):
+                pass  # Stale PID
+    write_pid()
+
+
+def cleanup():
+    if os.path.exists(PID_FILE):
+        os.unlink(PID_FILE)
+
+
+signal.signal(signal.SIGTERM, lambda *a: (cleanup(), sys.exit(0)))
+signal.signal(signal.SIGINT, lambda *a: (cleanup(), sys.exit(0)))
+
+
+def load_json(path):
+    with open(path) as f:
+        return json.load(f)
+
+
+def save_json(path, data):
+    with open(path, 'w') as f:
+        json.dump(data, f, indent=2)
+
+
+def api(method, path, body=None):
+    try:
+        creds = load_json(CRED_FILE)
+    except Exception as e:
+        return {"error": f"cred file: {e}"}
+    key = creds.get("apiKey", "")
+    url = f"{BASE_URL}{path}"
+    headers = {"x-arena-api-key": key, "Content-Type": "application/json"}
+    data = json.dumps(body).encode() if body else None
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                return {"status": resp.status, "body": json.loads(resp.read())}
+        except urllib.error.HTTPError as e:
+            body_text = e.read().decode()
+            try:
+                return {"status": e.code, "body": json.loads(body_text)}
+            except:
+                return {"status": e.code, "body": body_text}
+        except (TimeoutError, urllib.error.URLError) as e:
+            if attempt < 2:
+                time.sleep(1)
+                continue
+            return {"error": f"timeout: {e}"}
+
+
+def load_state():
+    try:
+        return load_json(STATE_FILE)
+    except:
+        return {"hands_played": 0, "hands_won": 0, "current_stack": 1000,
+                "bankroll": 1000, "chip_state": "available", "biggest_pot": 0,
+                "table_id": None, "rank": None, "best_rank": None}
+
+
+def save_state(s):
+    s["last_tick_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    save_json(STATE_FILE, s)
+
+
+# ─── Hand evaluator ───
+RANKS = "23456789TJQKA"
+SUITS = "hdcs"
+RANK_IDX = {r: i for i, r in enumerate(RANKS)}
+
+
+def parse_card(s):
+    if len(s) == 2:
+        return s[0], s[1]
+    return s[0], s[1]
+
+
+def hand_score(hole, board):
+    ranks = [RANK_IDX[parse_card(c)[0]] for c in hole + board]
+    pairs = set(r for r in ranks if ranks.count(r) >= 2)
+    trips = set(r for r in ranks if ranks.count(r) >= 3)
+    quads = set(r for r in ranks if ranks.count(r) >= 4)
+    suits = [parse_card(c)[1] for c in hole + board]
+    is_flush = any(suits.count(s) >= 5 for s in SUITS)
+    sorted_ranks = sorted(set(ranks))
+    is_straight = False
+    if len(sorted_ranks) >= 5:
+        for i in range(len(sorted_ranks) - 4):
+            if sorted_ranks[i+4] - sorted_ranks[i] == 4:
+                is_straight = True
+        if 0 in sorted_ranks and 12 in sorted_ranks:
+            is_straight = True
+    if quads or (trips and is_flush and is_straight) or (is_flush and is_straight):
+        return 4
+    if trips or (len(pairs) >= 2 and is_flush):
+        return 3
+    if len(pairs) >= 2:
+        return 2
+    if pairs:
+        return 2 if list(pairs)[0] >= RANK_IDX.get('J', 9) else 1
+    if is_flush or is_straight:
+        return 1
+    return 0
+
+
+def preflop_decision(hole, position, pot, stack):
+    if not hole or len(hole) < 2:
+        return "fold", 0, ""
+    r0 = RANK_IDX.get(parse_card(hole[0])[0])
+    r1 = RANK_IDX.get(parse_card(hole[1])[0])
+    if r0 is None or r1 is None:
+        return "fold", 0, ""
+    suited = parse_card(hole[0])[1] == parse_card(hole[1])[1]
+    high = max(r0, r1)
+    low = min(r0, r1)
+    pair = r0 == r1
+
+    # Premiums — always raise
+    if pair and high >= RANK_IDX['Q']:
+        return "raise", min(stack, max(pot * 3.5, 30)), f"Premium pair {hole[0]}{hole[1]}, raising for value."
+    if high == RANK_IDX['A'] and low == RANK_IDX['K']:
+        return "raise", min(stack, max(pot * 3.5, 30)), "AKs/AKo premium, raising to isolate."
+
+    reason = ""
+
+    # Early position (UTG/MP, seats 1-3)
+    if position <= 2:
+        if pair and high >= RANK_IDX['9']:
+            return "raise", min(stack, max(pot * 3, 20)), f"Pair {hole[0]}{hole[1]} in EP, raising for value."
+        if high >= RANK_IDX['A'] and low >= RANK_IDX['Q']:
+            return "raise", min(stack, max(pot * 3, 20)), "AQ+ in EP, standard raise."
+        if suited and high == RANK_IDX['K'] and low >= RANK_IDX['Q']:
+            return "raise", min(stack, max(pot * 3, 20)), "KQs in EP, playable raise."
+        if pair and stack >= 200:
+            return "call", 0, f"Set mining {hole[0]}{hole[1]} in EP, deep enough."
+        if suited and high == RANK_IDX['A']:
+            return "call", 0, "Suited ace in EP, see a flop."
+        if suited and high == RANK_IDX['K'] and low >= RANK_IDX['J']:
+            return "call", 0, "KJs/KQs suited in EP."
+        if suited and high == RANK_IDX['Q'] and low >= RANK_IDX['J']:
+            return "call", 0, "QJs suited in EP."
+        return "fold", 0, f"{hole[0]}{hole[1]} UTG — too weak from early position."
+
+    # Late position (CO/BTN, seats 4-6)
+    if pair:
+        if high >= RANK_IDX['9']:
+            return "raise", min(stack, max(pot * 3, 20)), f"Pair {hole[0]}{hole[1]} in LP, raise to steal blinds."
+        if high >= RANK_IDX['5']:
+            return "call", 0, f"Small pair {hole[0]}{hole[1]} in LP, set mining."
+    if high >= RANK_IDX['A'] and low >= RANK_IDX['T']:
+        a = "raise" if low >= RANK_IDX['Q'] else "call"
+        if a == "raise":
+            return "raise", min(stack, max(pot * 3, 20)), "AT+ in LP, raising to apply pressure."
+        return "call", 0, "AT/AJ in LP, calling to see flop."
+    if high >= RANK_IDX['K'] and low >= RANK_IDX['Q']:
+        return "raise", min(stack, max(pot * 3, 20)), "KQ in LP, raising for value."
+    if high >= RANK_IDX['K'] and low >= RANK_IDX['T']:
+        return "call", 0, "KT/KJ in LP, calling."
+    if suited and high == RANK_IDX['A']:
+        a = "raise" if low >= RANK_IDX['7'] else "call"
+        if a == "raise":
+            return "raise", min(stack, max(pot * 3, 20)), "A7s+ in LP, raising."
+        return "call", 0, "Axs in LP, calling."
+    if suited and high >= RANK_IDX['K']:
+        return "call", 0, f"Suited K{hole[1]} in LP."
+    gap = high - low
+    if suited and gap <= 2 and low >= RANK_IDX['4']:
+        return "call", 0, f"Suited connector {hole[0]}{hole[1]} in LP."
+    if suited and gap <= 4 and high >= RANK_IDX['9']:
+        return "call", 0, f"Suited gapper {hole[0]}{hole[1]} in LP."
+    if high >= RANK_IDX['Q'] and low >= RANK_IDX['J']:
+        return "call", 0, f"QJ/JT in LP."
+    if high >= RANK_IDX['T'] and gap <= 2:
+        return "call", 0, f"Broadway {hole[0]}{hole[1]} in LP."
+
+    # Blind defense (SB/BB, seats 7-8)
+    if position >= 6:
+        if high == RANK_IDX['A'] or pair or suited or high == RANK_IDX['K']:
+            return "call", 0, f"Blind defense with {hole[0]}{hole[1]}."
+        if high >= RANK_IDX['Q'] and low >= RANK_IDX['9']:
+            return "call", 0, f"Q9+ in blind, defending."
+        if high >= RANK_IDX['T'] and low >= RANK_IDX['8']:
+            return "call", 0, f"T8+ in blind."
+        if high >= RANK_IDX['J'] and gap <= 2:
+            return "call", 0, f"J9+ in blind."
+        return "fold", 0, f"{hole[0]}{hole[1]} in blind — too weak to defend."
+
+    return "fold", 0, f"{hole[0]}{hole[1]} — not playable."
+
+
+def postflop_decision(score, pot, stack, committed, board):
+    # Strong hands — max value
+    if score >= 3:
+        return "raise", min(stack, int(pot * 1.0)), "Trips+, going for max value, field calls wide."
+    if score >= 2:
+        return "raise", min(stack, max(int(pot * 0.75), 15)), "Two pair+, betting for value."
+
+    # Top pair — value bet
+    if score >= 1:
+        if len(board) <= 3:
+            return "raise", min(stack, max(int(pot * 0.6), 10)), "Top pair on flop, c-betting."
+        return "raise", min(stack, max(int(pot * 0.5), 10)), "Top pair on later street, value betting."
+
+    # Nothing — c-bet if we raised pre
+    if committed > 0:
+        if len(board) <= 3:
+            return "raise", min(stack, max(int(pot * 0.5), 10)), "C-bet flop, field folds too much."
+        if len(board) == 4:
+            return "raise", min(stack, max(int(pot * 0.6), 12)), "Double barrel on turn, continuing aggression."
+    return "check", 0, "Nothing on board, checking back."
+
+
+def safe_action(allowed_actions):
+    """Fallback when deadline is tight — safest available action."""
+    aa = allowed_actions.get("availableActions", [])
+    if "check" in aa:
+        return "check", 0, "Deadline tight, checking."
+    elif "call" in aa:
+        return "call", allowed_actions.get("callChips", 0), "Deadline tight, calling."
+    else:
+        return "fold", 0, "Deadline tight, folding to be safe."
+
+
+def generate_message(action):
+    msgs = {
+        "fold": ["Not today.", "You win this one.", "Saving chips.", "Live to see another hand.",
+                 "This hand smells like a trap.", "Good fold? We'll never know."],
+        "check": ["Free card?", "Checking with intent.", "Setting the trap.", "Let's see what you've got."],
+        "call": ["Alright, let's dance.", "Priced in.", "Calling because I can.", "Let's see a card."],
+        "raise": ["Time to apply pressure.", "Let's find out who's serious.",
+                  "Raising for value.", "Testing the waters."],
+        "all-in": ["All in. Let's race.", "If you're bluffing, nice one.", "This pot is mine."],
+    }
+    return random.choice(msgs.get(action, ["Playing my hand."]))
+
+
+def handle_table(table):
+    table_id = table.get("tableId") or table.get("id")
+    allowed_actions = table.get("allowedActions", {})
+    self_seat = table.get("selfSeatNumber", 0)
+    seats = table.get("seats", [])
+
+    our_seat = next((s for s in seats if s.get("seatNumber") == self_seat), {})
+    hole = our_seat.get("holeCards", [])
+    stack = our_seat.get("stackChips", 0) or 0
+    committed = our_seat.get("payoutChips", 0) or 0
+    board = table.get("boardCards", [])
+    pot = table.get("potChips", 0) or 0
+    deadline = table.get("actionDeadlineAt", 0)
+    position = min(self_seat - 1, 7) if self_seat else 0
+    street = table.get("street", "Preflop").lower()
+
+    # Deadline check
+    now_ms = time.time() * 1000
+    if deadline > 1e15:
+        deadline_ok = deadline > now_ms + DEADLINE_BUFFER * 1000
+    elif deadline > 1e9:
+        deadline_ok = deadline > time.time() + DEADLINE_BUFFER
+    else:
+        deadline_ok = True
+
+    # Decision
+    if not deadline_ok:
+        action, amount, reasoning = safe_action(allowed_actions)
+    elif street == "preflop":
+        action, amount, reasoning = preflop_decision(hole, position, pot, stack)
+    else:
+        score = hand_score(hole, board)
+        action, amount, reasoning = postflop_decision(score, pot, stack, committed, board)
+
+    # Validate action is available
+    available = allowed_actions.get("availableActions", [])
+    if action not in available:
+        action = available[0] if available else "fold"
+        reasoning = f"Adjusted to {action} (original not available)."
+
+    # Build body
+    body = {
+        "tableId": table_id,
+        "competitionId": COMPETITION_ID,
+        "action": action,
+        "reasoning": reasoning,
+        "message": generate_message(action),
+    }
+    if action == "raise":
+        rr = allowed_actions.get("raiseRange", {})
+        min_amt = rr.get("min", allowed_actions.get("minRaiseTo", 0))
+        max_amt = rr.get("max", allowed_actions.get("maxCommit", stack))
+        body["amount"] = max(min_amt, min(amount, max_amt))
+
+    result = api("POST", "/texas/action", body)
+    return result
+
+
+def main_loop():
+    check_pid()
+    state = load_state()
+    print(f"[S7 Daemon] Started. PID {os.getpid()}. Competition: {COMPETITION_ID}", flush=True)
+
+    while True:
+        try:
+            # Poll
+            result = api("GET", f"/texas/pending-actions?competitionId={COMPETITION_ID}")
+            if "error" in result:
+                time.sleep(QUEUE_POLL)
+                continue
+
+            body = result.get("body", {})
+            tables = body.get("tables", [])
+            participant = body.get("participant", {})
+
+            # Update state
+            if participant:
+                state["hands_played"] = participant.get("totalHands", state.get("hands_played", 0))
+                state["hands_won"] = participant.get("handsWon", state.get("hands_won", 0))
+                state["current_stack"] = participant.get("tableChips", state.get("current_stack", 0))
+                state["bankroll"] = participant.get("bankrollChips", state.get("bankroll", 0))
+                state["chip_state"] = participant.get("chipState", state.get("chip_state", "available"))
+                if participant.get("tableChips", 0) is not None:
+                    state["current_stack"] = participant.get("tableChips", state.get("current_stack", 0))
+                total = participant.get("totalChips", 0)
+                save_state(state)
+
+            # Act on tables
+            at_table = False
+            if tables:
+                for table in tables:
+                    acting_seat = table.get("actingSeatNumber")
+                    self_seat = table.get("selfSeatNumber")
+                    if acting_seat == self_seat:
+                        handle_table(table)
+                        at_table = True
+                        time.sleep(1)  # brief cooldown after action
+                # Continue polling aggressively when at a table
+                time.sleep(TABLE_POLL)
+                continue
+
+            # No tables — check queue
+            lobby = body.get("lobby")
+            chip_state = state.get("chip_state", "available")
+
+            if lobby is None and chip_state != "busted":
+                # Not queued — try to join
+                join_result = api("POST", "/texas/join", {"competitionId": COMPETITION_ID})
+                jbody = join_result.get("body", {}) if isinstance(join_result, dict) else {}
+                if "paymentRequirements" in jbody:
+                    print("[S7] Rebuy costs MON — waiting for Jordan to fund.", flush=True)
+                elif "participant" in jbody:
+                    part = jbody["participant"]
+                    state["chip_state"] = part.get("chipState", state.get("chip_state", "available"))
+                    state["current_stack"] = part.get("tableChips", state.get("current_stack", 0))
+                    state["bankroll"] = part.get("bankrollChips", state.get("bankroll", 0))
+                    save_state(state)
+
+            elif chip_state == "busted":
+                print(f"[S7] BUSTED — {state.get('bankroll', 0)} bankroll, "
+                      f"{state.get('hands_played', 0)} hands. Need MON rebuy.", flush=True)
+
+            # Queue polling — slower
+            time.sleep(QUEUE_POLL)
+
+        except KeyboardInterrupt:
+            print("[S7 Daemon] Shutting down.", flush=True)
+            break
+        except Exception as e:
+            print(f"[S7 Daemon] Error: {e}", flush=True)
+            time.sleep(QUEUE_POLL)
+
+    cleanup()
+
+
+if __name__ == "__main__":
+    main_loop()

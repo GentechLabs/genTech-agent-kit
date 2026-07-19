@@ -137,6 +137,8 @@ def hand_score(hole, board):
 
 
 def preflop_decision(hole, position, pot, stack):
+    """LAG strategy — wider ranges, more aggression, fewer folds.
+       Jordan directive: take more risk, loosen up."""
     if not hole or len(hole) < 2:
         return "fold", 0, ""
     r0 = RANK_IDX.get(parse_card(hole[0])[0])
@@ -148,98 +150,98 @@ def preflop_decision(hole, position, pot, stack):
     low = min(r0, r1)
     pair = r0 == r1
 
-    # Premiums — always raise
-    if pair and high >= RANK_IDX['Q']:
-        return "raise", min(stack, max(pot * 3.5, 30)), f"Premium pair {hole[0]}{hole[1]}, raising for value."
+    # ─── Premiums — always raise, bigger sizing ───
+    if pair and high >= RANK_IDX['T']:
+        return "raise", min(stack, max(pot * 4, 40)), f"Premium pair {hole[0]}{hole[1]}, applying pressure."
     if high == RANK_IDX['A'] and low == RANK_IDX['K']:
-        return "raise", min(stack, max(pot * 3.5, 30)), "AKs/AKo premium, raising to isolate."
+        return "raise", min(stack, max(pot * 4, 40)), "AK premium, raise to isolate."
 
-    reason = ""
-
-    # Early position (UTG/MP, seats 1-3)
+    # ─── Early position — still selective but wider ───
     if position <= 2:
-        if pair and high >= RANK_IDX['9']:
-            return "raise", min(stack, max(pot * 3, 20)), f"Pair {hole[0]}{hole[1]} in EP, raising for value."
-        if high >= RANK_IDX['A'] and low >= RANK_IDX['Q']:
-            return "raise", min(stack, max(pot * 3, 20)), "AQ+ in EP, standard raise."
-        if suited and high == RANK_IDX['K'] and low >= RANK_IDX['Q']:
-            return "raise", min(stack, max(pot * 3, 20)), "KQs in EP, playable raise."
-        if pair and stack >= 200:
-            return "call", 0, f"Set mining {hole[0]}{hole[1]} in EP, deep enough."
-        if suited and high == RANK_IDX['A']:
-            return "call", 0, "Suited ace in EP, see a flop."
+        if pair and high >= RANK_IDX['7']:
+            return "raise", min(stack, max(pot * 3, 20)), f"Pair {hole[0]}{hole[1]} in EP, raising."
+        if high >= RANK_IDX['A'] and low >= RANK_IDX['J']:
+            return "raise", min(stack, max(pot * 3, 20)), "AJ+ in EP, standard raise."
         if suited and high == RANK_IDX['K'] and low >= RANK_IDX['J']:
-            return "call", 0, "KJs/KQs suited in EP."
-        if suited and high == RANK_IDX['Q'] and low >= RANK_IDX['J']:
-            return "call", 0, "QJs suited in EP."
-        return "fold", 0, f"{hole[0]}{hole[1]} UTG — too weak from early position."
+            return "raise", min(stack, max(pot * 3, 20)), "KJs+ in EP."
+        if suited and high == RANK_IDX['Q'] and low == RANK_IDX['J']:
+            return "raise", min(stack, max(pot * 3, 20)), "QJs in EP."
+        if suited and high == RANK_IDX['J'] and low == RANK_IDX['T']:
+            return "raise", min(stack, max(pot * 3, 20)), "JTs in EP."
+        if pair:
+            return "call", 0, f"Small pair {hole[0]}{hole[1]} in EP, set mining."
+        if suited and high == RANK_IDX['A']:
+            return "call", 0, "Suited ace in EP."
+        if suited and high == RANK_IDX['K'] and low >= RANK_IDX['T']:
+            return "call", 0, "KTs+ suited in EP."
+        if suited and high == RANK_IDX['J'] and low >= RANK_IDX['9']:
+            return "call", 0, "J9s+ suited in EP."
+        if suited and (high - low) <= 2 and low >= RANK_IDX['5']:
+            return "call", 0, f"Suited connector {hole[0]}{hole[1]} in EP."
+        return "fold", 0, f"{hole[0]}{hole[1]} UTG — fold, too weak to open from EP."
 
-    # Late position (CO/BTN, seats 4-6)
+    # ─── Late position — wide open, apply pressure ───
     if pair:
-        if high >= RANK_IDX['9']:
-            return "raise", min(stack, max(pot * 3, 20)), f"Pair {hole[0]}{hole[1]} in LP, raise to steal blinds."
-        if high >= RANK_IDX['5']:
-            return "call", 0, f"Small pair {hole[0]}{hole[1]} in LP, set mining."
-    if high >= RANK_IDX['A'] and low >= RANK_IDX['T']:
-        a = "raise" if low >= RANK_IDX['Q'] else "call"
-        if a == "raise":
-            return "raise", min(stack, max(pot * 3, 20)), "AT+ in LP, raising to apply pressure."
-        return "call", 0, "AT/AJ in LP, calling to see flop."
-    if high >= RANK_IDX['K'] and low >= RANK_IDX['Q']:
-        return "raise", min(stack, max(pot * 3, 20)), "KQ in LP, raising for value."
+        return "raise", min(stack, max(pot * 3.5, 24)), f"Pair {hole[0]}{hole[1]} in LP, raising."
+    if high == RANK_IDX['A']:
+        if low >= RANK_IDX['8'] or suited:
+            return "raise", min(stack, max(pot * 3, 20)), f"A{hole[1]} in LP, raising."
+        return "call", 0, "A2-A7o in LP, calling."
     if high >= RANK_IDX['K'] and low >= RANK_IDX['T']:
-        return "call", 0, "KT/KJ in LP, calling."
-    if suited and high == RANK_IDX['A']:
-        a = "raise" if low >= RANK_IDX['7'] else "call"
-        if a == "raise":
-            return "raise", min(stack, max(pot * 3, 20)), "A7s+ in LP, raising."
-        return "call", 0, "Axs in LP, calling."
-    if suited and high >= RANK_IDX['K']:
-        return "call", 0, f"Suited K{hole[1]} in LP."
-    gap = high - low
-    if suited and gap <= 2 and low >= RANK_IDX['4']:
-        return "call", 0, f"Suited connector {hole[0]}{hole[1]} in LP."
-    if suited and gap <= 4 and high >= RANK_IDX['9']:
-        return "call", 0, f"Suited gapper {hole[0]}{hole[1]} in LP."
+        return "raise", min(stack, max(pot * 3, 20)), f"KT+ in LP, raising."
     if high >= RANK_IDX['Q'] and low >= RANK_IDX['J']:
-        return "call", 0, f"QJ/JT in LP."
-    if high >= RANK_IDX['T'] and gap <= 2:
-        return "call", 0, f"Broadway {hole[0]}{hole[1]} in LP."
+        return "raise", min(stack, max(pot * 3, 20)), "QJ+ in LP, raising."
+    if suited and high >= RANK_IDX['J'] and low >= RANK_IDX['9']:
+        return "raise", min(stack, max(pot * 3, 20)), f"J9s+ in LP, raising."
+    if suited and low >= RANK_IDX['5'] and (high - low) <= 2:
+        return "raise", min(stack, max(pot * 3, 20)), f"Suited connector {hole[0]}{hole[1]} in LP, raising."
+    if suited:
+        return "call", 0, f"Suited {hole[0]}{hole[1]} in LP, see a flop."
+    if high >= RANK_IDX['Q']:
+        return "call", 0, f"Qx in LP, calling."
+    if high >= RANK_IDX['J'] and low >= RANK_IDX['8']:
+        return "call", 0, f"J8+ in LP."
+    if high >= RANK_IDX['T'] and low >= RANK_IDX['7']:
+        return "call", 0, f"T7+ in LP."
 
-    # Blind defense (SB/BB, seats 7-8)
+    # ─── Blind defense — defend aggressively ───
     if position >= 6:
-        if high == RANK_IDX['A'] or pair or suited or high == RANK_IDX['K']:
-            return "call", 0, f"Blind defense with {hole[0]}{hole[1]}."
-        if high >= RANK_IDX['Q'] and low >= RANK_IDX['9']:
-            return "call", 0, f"Q9+ in blind, defending."
-        if high >= RANK_IDX['T'] and low >= RANK_IDX['8']:
-            return "call", 0, f"T8+ in blind."
-        if high >= RANK_IDX['J'] and gap <= 2:
-            return "call", 0, f"J9+ in blind."
-        return "fold", 0, f"{hole[0]}{hole[1]} in blind — too weak to defend."
+        if high == RANK_IDX['A'] or pair or suited:
+            return "call", 0, f"Blind defense {hole[0]}{hole[1]}."
+        if high == RANK_IDX['K']:
+            return "call", 0, "Kx blind defense."
+        if high >= RANK_IDX['Q'] and low >= RANK_IDX['7']:
+            return "call", 0, "Q7+ blind defense."
+        if high >= RANK_IDX['J'] and low >= RANK_IDX['8']:
+            return "call", 0, "J8+ blind defense."
+        if high >= RANK_IDX['T'] and low >= RANK_IDX['9']:
+            return "call", 0, "T9+ blind defense."
+        if (high - low) <= 3 and low >= RANK_IDX['5']:
+            return "call", 0, f"Connected {hole[0]}{hole[1]} in blind, taking a flop."
+        return "fold", 0, f"{hole[0]}{hole[1]} too weak, fold blind."
 
     return "fold", 0, f"{hole[0]}{hole[1]} — not playable."
 
 
 def postflop_decision(score, pot, stack, committed, board):
-    # Strong hands — max value
+    # Strong hands — max value, bigger sizing
     if score >= 3:
-        return "raise", min(stack, int(pot * 1.0)), "Trips+, going for max value, field calls wide."
+        return "raise", min(stack, int(pot * 1.2)), "Trips+, potting for max value."
     if score >= 2:
-        return "raise", min(stack, max(int(pot * 0.75), 15)), "Two pair+, betting for value."
-
+        return "raise", min(stack, max(int(pot * 0.85), 20)), "Two pair+, pot-sized."
     # Top pair — value bet
     if score >= 1:
-        if len(board) <= 3:
-            return "raise", min(stack, max(int(pot * 0.6), 10)), "Top pair on flop, c-betting."
-        return "raise", min(stack, max(int(pot * 0.5), 10)), "Top pair on later street, value betting."
-
-    # Nothing — c-bet if we raised pre
+        return "raise", min(stack, max(int(pot * 0.7), 12)), "Top pair, betting for value."
+    # Nothing — c-bet always when we raised pre, double barrel
     if committed > 0:
         if len(board) <= 3:
-            return "raise", min(stack, max(int(pot * 0.5), 10)), "C-bet flop, field folds too much."
+            return "raise", min(stack, max(int(pot * 0.6), 12)), "C-bet flop 100%, field folds too much."
         if len(board) == 4:
-            return "raise", min(stack, max(int(pot * 0.6), 12)), "Double barrel on turn, continuing aggression."
+            return "raise", min(stack, max(int(pot * 0.7), 14)), "Double barrel turn, continuing story."
+        # River — one last stab if pot is worth it
+        if pot > 40 and random.random() < 0.4:
+            return "raise", min(stack, max(int(pot * 0.5), 10)), "River bluff stab."
+    # Nothing, didn't raise pre — give up
     return "check", 0, "Nothing on board, checking back."
 
 

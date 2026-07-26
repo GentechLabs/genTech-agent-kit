@@ -4,112 +4,132 @@
 
 [![Release](https://img.shields.io/github/v/release/ProtoJay4789/genTech-agent-kit?style=flat&label=release)](https://github.com/ProtoJay4789/genTech-agent-kit/releases)
 [![License](https://img.shields.io/github/license/ProtoJay4789/genTech-agent-kit?style=flat)](LICENSE)
-[![Language](https://img.shields.io/github/languages/top/ProtoJay4789/genTech-agent-kit?style=flat)](https://github.com/ProtoJay4789/genTech-agent-kit)
+[![Language](https://img.shields.io/github/languages/top/ProtoJay4789/genTech-agent-kit?style=flat)](https://github.com/ProtoJay4789/genTech-agent-kit/tree/main)
 [![Skills](https://img.shields.io/badge/skills-npx%20install-blue?style=flat)](https://github.com/ProtoJay4789/genTech-agent-kit/tree/main/skills)
 [![x402](https://img.shields.io/badge/payments-x402-8A2BE2?style=flat)](https://www.x402.org)
-[![Atelier](https://img.shields.io/badge/marketplace-Atelier-000?style=flat)](https://useatelier.ai)
+[![Q402](https://img.shields.io/badge/gasless-Q402-00D4AA?style=flat)](https://q402.quackai.ai)
+[![Self-Evolution](https://img.shields.io/badge/evolve-harness-FF6B9D?style=flat)](https://github.com/erenciracioglu-dotcom/hermes-self-evolution)
+[![Glama](https://img.shields.io/badge/glama-genTech--shop-blueviolet?style=flat)](https://glama.ai/mcp/servers/ProtoJay4789/genTech-shop)
 
-The GenTech Agent Kit packages the entire GenTech stack into a single installable MCP server. One command gives any AI agent real-time market data, DeFi intelligence, payment rails, and agent identity infrastructure.
+The GenTech Agent Kit packages the entire GenTech stack into a single installable MCP server. One command gives any AI agent real-time market data, DeFi intelligence, payment rails, agent identity infrastructure, and self-evolution capabilities.
 
 ```bash
 uvx --from git+https://github.com/ProtoJay4789/genTech-agent-kit.git gentech-kit
 ```
 
-## Install as Agent Skills
+**Requires:** Hermes Agent v0.19.0+ | CMC_API_KEY env var (free at coinmarketcap.com/api)
 
-```bash
-# Install the main skill
-npx skills add ProtoJay4789/genTech-agent-kit
-
-# Install specific skills
-npx skills add ProtoJay4789/genTech-agent-kit --skill x402-payments
-npx skills add ProtoJay4789/genTech-agent-kit --skill robinhood-chain
-npx skills add ProtoJay4789/genTech-agent-kit --skill output-enforcer
-```
+---
 
 ## Quick Start
 
 ```bash
 # Install and run
 uvx --from git+https://github.com/ProtoJay4789/genTech-agent-kit.git gentech-kit
-```
 
-Requires: `CMC_API_KEY` env var (get one free at coinmarketcap.com/api)
-
-```bash
+# Set your API key
 export CMC_API_KEY="your-key-here"
 ```
 
-## Tools
+The MCP server starts and exposes all GenTech tools to your agent.
 
-### Market Data
-| Tool | Description |
-|------|-------------|
-| `get_quote(symbol)` | Real-time price for BTC, ETH, SOL, etc. |
-| `get_listings(start, limit)` | Top tokens by market cap |
-| `search_token(symbol)` | Token metadata, description, tags, logo |
-| `get_trending(kind)` | Gainers, losers, most visited, latest |
-| `get_dex_pairs(symbol)` | DEX pair data across exchanges |
+---
 
-### Platform
-| Tool | Description |
-|------|-------------|
-| `kit_info()` | Agent Kit version, tool list, update status |
-
-### Plugins (auto-discovered)
-| Plugin | Tools | Settlement |
-|--------|-------|------------|
-| Algorand x402 Gateway | `algorand_x402_info`, `algorand_verify_payment`, `algorand_get_quote` | ALGO via GoPlausible |
-| Robinhood Chain x402 | `rh_info`, `rh_list_stocks`, `rh_get_stock`, `rh_crypto_quote`, `rh_verify_payment` | USDG via Naven Network |
-| Output Enforcer | `output_enforcer_status`, `output_enforcer_violations`, `output_enforcer_clear`, `output_enforcer_breakers` | — |
-| Pika Creative Suite | `pika_skills`, `pika_generate`, `pika_build_brand`, `pika_app_sizzle`, `pika_explainer` | — |
-
-### Demo: x402 Payment Flow
+## Install as Agent Skills
 
 ```bash
-# Hit a paid endpoint without payment
-curl -i https://api.naven.network/x402-test/ping
-# → HTTP 402 Payment Required with x402 v2 challenge
-# → Network: Robinhood Chain (eip155:4663)
-# → Token: USDG ($0.0001 per query)
+# Main skill
+npx skills add ProtoJay4789/genTech-agent-kit
+
+# Specific skills
+npx skills add ProtoJay4789/genTech-agent-kit --skill x402-payments
+npx skills add ProtoJay4789/genTech-agent-kit --skill robinhood-chain
+npx skills add ProtoJay4789/genTech-agent-kit --skill output-enforcer
 ```
 
-## Why GenTech Agent Kit?
+---
 
-| Feature | Benefit |
-|---------|---------|
-| **Always updated** | Active development — new tools ship continuously. `uv tool install --reinstall` gets the latest. |
-| **Adaptive stack** | Modular design. Tools discovered dynamically — the kit grows without breaking existing integrations. |
-| **x402 native** | Every API supports machine-to-machine micropayments. Pay per query, no subscription. |
-| **Open source** | MIT license. Audit, fork, extend. No vendor lock-in. |
-| **Premier distribution** | Listed on Atelier, PortalHQ, Monad Agent Hub. Your agent finds us automatically. |
+## What's Included
 
-## MCP Client Setup
+### Payment Rails
 
-### Claude Code
+| Component | What It Does | Status |
+|-----------|-------------|--------|
+| **x402-payments** | Solana micropayments via x402 gateway — pay-per-call API access | Live |
+| **Q402 Gasless** | Gasless USDC/USDT on 12 chains via EIP-7702 (trial on BNB) | Live |
+| **Pay Wallet** | Solana wallet for x402 income collection | Live |
+
+### Self-Evolution (Harness)
+
+Four cron jobs that make your Hermes instance measurably better over time. Uses the [hermes-self-evolution](https://github.com/erenciracioglu-dotcom/hermes-self-evolution) framework.
+
+| Role | Schedule | Job |
+|------|----------|-----|
+| Evolution | Every 4h | Proposes one grounded improvement from real user friction |
+| Critic | Every 4h (offset) | Reviews proposals — different model prevents collusion |
+| Verifier | Every 2 days | Checks if predictions actually came true |
+| Gardener | Every 7 days | Prunes dormant skills, checks credential health |
+
+Witness log auto-fed from context-weight nightly. No bookkeeping theatre (Article II).
+
+### Agent Infrastructure
+
+| Skill | What It Does |
+|-------|-------------|
+| **output-enforcer** | Structured output enforcement with circuit breaker |
+| **robinhood-chain** | Robinhood Chain integration (USDG, tokenized stocks) |
+| **wakeup-protocol** | Session wakeup — loads .env, reports configured services |
+
+### Modules
+
+- **Poker Tournament Daemon** — Automated tournament loop with LAG strategy
+- **Context Weight Generator** — Cross-group context sync nightly
+- **genTech-shop MCP** — Gaming intelligence (deals, releases, POE2 builds)
+- **Obliteratus** — ML refusal removal for local models (RTX 3070+)
+
+---
+
+## Platform Support
+
+| Component | Hermes v0.19+ | Claude Code | Cursor | Codex |
+|-----------|:---:|:---:|:---:|:---:|
+| MCP Server | ✅ | ✅ | ✅ | ✅ |
+| Agent Skills | ✅ | ✅ | ✅ | ✅ |
+| Self-Evolution | ✅ | Cron only | Cron only | Cron only |
+| x402 Payments | ✅ | ✅ | ✅ | ✅ |
+
+---
+
+## Environment Variables
+
 ```bash
-claude mcp add gentech-agent-kit \
-  --env CMC_API_KEY=your-key-here \
-  -- uvx --from git+https://github.com/ProtoJay4789/genTech-agent-kit.git gentech-kit
+# Required
+CMC_API_KEY=your-key-here
+
+# Payment Rails
+PAY_SECRET_KEY_PATH=/path/to/solana-keypair.json
+Q402_TRIAL_API_KEY=your-trial-key
+Q402_MULTICHAIN_API_KEY=your-multichain-key
+
+# Optional
+ELEVENLABS_API_KEY=your-elevenlabs-key
+GITHUB_TOKEN=your-github-token
 ```
 
-### Claude Desktop
-```json
-{
-  "mcpServers": {
-    "gentech-agent-kit": {
-      "command": "uvx",
-      "args": ["--from", "git+https://github.com/ProtoJay4789/genTech-agent-kit.git", "gentech-kit"],
-      "env": { "CMC_API_KEY": "your-key-here" }
-    }
-  }
-}
-```
+---
+
+## Key Addresses
+
+| Asset | Address |
+|-------|---------|
+| Pay Wallet (Solana) | pX1FTLyXAskfD4y8pRwx7Go58GpM9t2PtGZGj6Lq2hR |
+| TREASURY Token | 0x56D03C0f4167cC2c26B781dE47E608d660F13ba3 |
+| Primary Wallet | 0x7ebff188f2Eba16518C02864589b1403a5d1296a |
+| GenTech Shop | glama.ai/mcp/servers/ProtoJay4789/genTech-shop |
+| Investor Deck | gentechlabs.net/grant.html |
+
+---
 
 ## License
 
-MIT — GenTech Labs
-
-## About
-
-**GenTech Labs** builds payment infrastructure for AI agents. We make it possible for agents to pay each other, subscribe to services, and earn revenue — all on-chain, all autonomously.
+MIT | Built by [GenTech Labs](https://gentechlabs.net)

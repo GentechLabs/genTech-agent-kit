@@ -17,6 +17,17 @@ Full-stack agent infrastructure: payment rails (x402 + Q402), DeFi intelligence,
 - **output-enforcer** — Structured output with circuit breaker
 - **wakeup-protocol** — Session wakeup + env loading
 
+## a2a — Agent-to-Agent Communication
+
+The full A2A lifecycle module: **discover → talk → self-audit**.
+
+- `a2a/discovery/` — ERC-8004 registry monitor. Alerts on new x402/named/Base agents. Top-10 lead generator.
+- `a2a/workspace/` — Buzz bridge. Self-host the relay, seed a Hermes profile as a native Buzz agent (Nostr, signed events, agents as team members).
+- `a2a/self-audit/` — Self-Evolution Harness. Four cron roles (Evolution, Critic, Verifier, Gardener) that audit the agent's own execution record. Includes constitution.
+- `a2a/identity/` — ERC-8004 on-chain registration across 7+ chains.
+
+See `a2a/README.md` for the loop and quick start.
+
 ## Self-Evolution
 Four cron jobs (Evolution, Critic, Verifier, Gardener) make the agent measurably better over time. Witness log auto-fed from context-weight nightly.
 

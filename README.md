@@ -82,6 +82,7 @@ Witness log auto-fed from context-weight nightly. No bookkeeping theatre (Articl
 
 ### Modules
 
+- **a2a — Agent-to-Agent Communication** — the full A2A lifecycle: [discover](a2a/discovery/README.md) new agents on the ERC-8004 registry → [talk](a2a/workspace/README.md) to them in the Buzz workspace → [self-audit](a2a/self-audit/README.md) your own execution. Includes on-chain [identity registration](a2a/identity/register.py) across 7+ chains
 - **Poker Tournament Daemon** — Automated tournament loop with LAG strategy
 - **Context Weight Generator** — Cross-group context sync nightly
 - **genTech-shop MCP** — Gaming intelligence (deals, releases, POE2 builds)

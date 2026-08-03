@@ -14,7 +14,7 @@ from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from decimal import Decimal
 
-app = FastAPI(title="GenTech x402 Gateway", version="2.0.0")
+app = FastAPI(title="GenTech x402 Gateway", version="2.0.0", openapi_url=None, docs_url=None, redoc_url=None)
 
 app.add_middleware(
     CORSMiddleware,
@@ -296,7 +296,47 @@ async def health():
 
 @app.get("/openapi.json")
 async def openapi():
-    return {"openapi": "3.0.0", "info": {"title": "GenTech x402 Gateway", "version": "2.0.0"}}
+    """Full OpenAPI spec — free endpoints marked security:[], paid endpoints
+    carry the x402 security scheme so x402scan can probe them correctly."""
+    free = {"security": []}
+    spec = {
+        "openapi": "3.0.0",
+        "info": {
+            "title": "GenTech Labs x402 Gateway",
+            "version": MANIFEST.get("version", "9.0.0"),
+            "description": "Pay-per-call API gateway with 7 services across Base Network. Token security, wallet analysis, agent discovery, market intelligence, DeFi LP analytics, NFT search, treasury defense.",
+            "contact": {"email": "jordanjones0902@gmail.com", "name": "GenTech Labs", "url": "https://gentechlabs.net"},
+        },
+        "servers": [{"url": "https://api.gentechlabs.net"}],
+        "security": [{"x402": []}],
+        "components": {
+            "securitySchemes": {
+                "x402": {
+                    "type": "http",
+                    "scheme": "bearer",
+                    "description": "x402 payment proof. Call without a proof to receive HTTP 402 with payment requirements (USDC on Base). Pay via EIP-3009 and retry with Authorization: x402 <proof>.",
+                }
+            }
+        },
+        "paths": {
+            "/": {"get": {"summary": "Root", "security": []}},
+            "/health": {"get": {"summary": "Health check", "security": []}},
+            "/status": {"get": {"summary": "Backend status", "security": []}},
+            "/openapi.json": {"get": {"summary": "OpenAPI spec", "security": []}},
+            "/.well-known/x402": {"get": {"summary": "x402 discovery", "security": []}},
+            "/.well-known/x402-bazaar": {"get": {"summary": "x402 bazaar manifest", "security": []}},
+            "/.well-known/agent-card.json": {"get": {"summary": "Agent card", "security": []}},
+            "/v1/{service}/{path}": {
+                "parameters": [
+                    {"name": "service", "in": "path", "required": True, "schema": {"type": "string"}},
+                    {"name": "path", "in": "path", "required": True, "schema": {"type": "string"}},
+                ],
+                "get": {"summary": "Paid x402 endpoint (service/path)", "responses": {"402": {"description": "Payment required"}, "200": {"description": "OK"}}},
+                "post": {"summary": "Paid x402 endpoint (service/path)", "responses": {"402": {"description": "Payment required"}, "200": {"description": "OK"}}},
+            },
+        },
+    }
+    return spec
 
 
 # Dynamic paid endpoint routing

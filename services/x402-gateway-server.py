@@ -429,10 +429,12 @@ async def paid_endpoint(service: str, path: str, request: Request):
 @app.get("/status")
 async def status():
     backend_status = {}
-    for name, url in BACKEND_ROUTES.items():
+    for name, route in BACKEND_ROUTES.items():
+        base = route[0]  # tuple (base, public_prefix, backend_prefix)
         try:
             async with httpx.AsyncClient(timeout=3) as c:
-                r = await c.get(f"{url}/health")
+                # Backends expose health at /v1/health (not /health). Fix Aug 2026.
+                r = await c.get(f"{base}/v1/health")
                 backend_status[name] = "ok" if r.status_code == 200 else "degraded"
         except Exception:
             backend_status[name] = "down"

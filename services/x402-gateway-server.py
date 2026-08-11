@@ -372,7 +372,9 @@ async def paid_endpoint(service: str, path: str, request: Request):
                     media_type="application/json",
                     headers={"Access-Control-Allow-Origin": "*"},
                 )
-        valid, reason = verify_proof_simulation(proof, price)
+        else:
+            # no CDP key → simulation (HMAC dev/ARC gateway proof format)
+            valid, reason = verify_proof_simulation(proof, price)
 
     if not valid:
         return Response(

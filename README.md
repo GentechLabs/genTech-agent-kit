@@ -45,6 +45,7 @@ npx skills add ProtoJay4789/genTech-agent-kit
 npx skills add ProtoJay4789/genTech-agent-kit --skill x402-payments
 npx skills add ProtoJay4789/genTech-agent-kit --skill robinhood-chain
 npx skills add ProtoJay4789/genTech-agent-kit --skill output-enforcer
+npx skills add ProtoJay4789/genTech-agent-kit --skill context-cycle-proactive
 ```
 
 ---
@@ -79,6 +80,7 @@ Witness log auto-fed from context-weight nightly. No bookkeeping theatre (Articl
 | **output-enforcer** | Structured output enforcement with circuit breaker |
 | **robinhood-chain** | Robinhood Chain integration (USDG, tokenized stocks) |
 | **wakeup-protocol** | Session wakeup — loads .env, reports configured services |
+| **context-cycle-proactive** | Save → route → load → resume at 80-90% context; keeps every agent synced to the second brain |
 
 ### Modules
 

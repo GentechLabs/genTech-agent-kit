@@ -16,6 +16,7 @@ Full-stack agent infrastructure: payment rails (x402 + Q402), DeFi intelligence,
 - **robinhood-chain** — Robinhood Chain (USDG, stocks)
 - **output-enforcer** — Structured output with circuit breaker
 - **wakeup-protocol** — Session wakeup + env loading
+- **context-cycle-proactive** — Save → route → load → resume at 80-90% context; keeps every agent synced to the second brain (tiered by model window)
 
 ## a2a — Agent-to-Agent Communication
 

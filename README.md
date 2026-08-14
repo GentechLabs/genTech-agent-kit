@@ -81,6 +81,7 @@ Witness log auto-fed from context-weight nightly. No bookkeeping theatre (Articl
 | **robinhood-chain** | Robinhood Chain integration (USDG, tokenized stocks) |
 | **wakeup-protocol** | Session wakeup — loads .env, reports configured services |
 | **context-cycle-proactive** | Save → route → load → resume at 80-90% context; keeps every agent synced to the second brain |
+| **safe-update-restart** | Safe update/restart for a production VPS: backup → controlled window → restart → verify every service & endpoint after |
 
 ### Modules
 

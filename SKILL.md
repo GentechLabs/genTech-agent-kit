@@ -17,6 +17,7 @@ Full-stack agent infrastructure: payment rails (x402 + Q402), DeFi intelligence,
 - **output-enforcer** — Structured output with circuit breaker
 - **wakeup-protocol** — Session wakeup + env loading
 - **context-cycle-proactive** — Save → route → load → resume at 80-90% context; keeps every agent synced to the second brain (tiered by model window)
+- **safe-update-restart** — Safe update/restart for a production VPS: backup → controlled window → restart → verify every service & endpoint after
 
 ## a2a — Agent-to-Agent Communication
 

@@ -1,7 +1,7 @@
 ---
 name: context-cycle-proactive
 description: "At 80-90% context, save to the brain, route to the right channel, load fresh context, and resume. Built-in lifecycle so every agent stays synced to the second brain and never drops work."
-version: 1.0.0
+version: 1.1.0
 author: Gentech
 tags: [context, memory, resume, session-hygiene, save, brain]
 license: MIT
@@ -59,6 +59,25 @@ Compact / start a new session so the context window is clear. Tell the user:
 
 If /new isn't wanted yet, at minimum clear the working context via compaction so the
 window is fresh but the save is already in the vault.
+
+### Step 3a: PROMPT the user to start new when you can't do it yourself (Jordan directive Aug 16 2026)
+**The problem it fixes:** agents cut it close at high memory instead of starting a fresh
+context — so work gets dropped or the session degrades. An agent often CANNOT start a new
+context on its own (no `/new` access, no self-compaction). The fix is to **ask the user**,
+explicitly and early, instead of pushing to the edge.
+
+**The rule — at ~85% memory (or the agent's execute threshold), prompt the user:**
+> "I'm going to save progress and log everything to the brain. Go ahead and start new
+> (`/new`), and we can continue the conversation."
+
+**Do this BEFORE the save is critical, not after.** The sequence:
+1. Save progress to the brain (Step 1) + route the log (Step 2) — so nothing is lost.
+2. **Prompt the user to start new** — give them the exact words to say/type.
+3. On the fresh session, load the resume point (Step 4) and continue — do NOT restart.
+
+**Why this matters:** a lost save is never worth the extra minutes of context. Prompting
+the user to start new is the reliable way to clear the window when the agent can't do it
+itself. This is a labeled, required behavior — not a nice-to-have.
 
 ### Step 4: RESUME the task
 On the fresh session (or after compaction), load the resume point:

@@ -1,30 +1,34 @@
 #!/usr/bin/env python3
 """
-HANDOFF watcher — enhanced: surfaces OPEN handoffs AND recent completions,
-with tappable Obsidian deep-links so Jordan can open the note in his phone app.
+HANDOFF watcher — STATEFUL. Reports only NEW handoffs and STATUS CHANGES.
 
-Two halves of the loop:
-  OPEN    — handoffs still sitting in INBOX/<group>/ that need picking up.
-  DONE    — recent completion notes (agents reporting what they shipped).
+Runs as a no_agent cron script. To stay silent when nothing changes, it keeps
+a state file of what it has already reported and only prints:
+  - NEW open handoffs (appeared since last run)
+  - RESOLVED handoffs (were open, now marked resolved — "cleared")
+  - NEW recent completions (agents reporting what they shipped)
 
-Output is STABLE (no timestamps) so it stays safe as a no_agent monitor script.
-Completions are matched by date; pass --days N (default 2) to widen the window.
+If nothing changed since the last run, it prints NOTHING → cron stays silent.
+When every open item is resolved/cleared and there are no new completions,
+it prints nothing too (Jordan isn't working on anything).
+
+State file lives next to the script: handoff-watcher.state.json
 
 Usage:
-    python3 handoff-watcher.py [vault_path] [--days N] [--vault-name NAME]
+    python3 handoff-watcher.py [vault_path] [--days N] [--vault-name NAME] [--state PATH]
 """
 import os
 import re
 import sys
+import json
 import datetime
 
 VAULT = "/root/vaults/gentech"
 INBOX = os.path.join(VAULT, "01-HANDOFFS", "INBOX")
 HANDOFFS = os.path.join(VAULT, "01-HANDOFFS")
 
-# The name of the vault as it appears in Jordan's Obsidian app. This is what
-# makes the obsidian:// links resolve on his phone. Default "gentech".
 VAULT_NAME = "gentech"
+STATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "handoff-watcher.state.json")
 
 KNOWN_GROUPS = {"hq", "forge", "labs", "entertainment", "treasury", "gizmo"}
 
@@ -40,7 +44,6 @@ RESOLVED_MARKERS = (
     "status:** [x]",
 )
 
-# Completion files per group. <group>-completions.md at 01-HANDOFFS/ root.
 COMPLETION_FILES = {
     "gentech": "gentech-completions.md",
     "entertainment": "entertainment-completions.md",
@@ -63,15 +66,14 @@ def is_resolved(path):
 
 
 def obsidian_link(rel_path):
-    """Return an Obsidian deep-link that opens the note in Jordan's app.
-    rel_path is vault-relative, e.g. 01-HANDOFFS/INBOX/hq/x.md"""
     from urllib.parse import quote
     file_part = quote(rel_path, safe="")
     return f"obsidian://open?vault={VAULT_NAME}&file={file_part}"
 
 
 def find_open():
-    open_notes = []
+    """Return dict {relative_path: (group, filename)} of still-open handoffs."""
+    open_notes = {}
     if not os.path.isdir(INBOX):
         return open_notes
     for group in sorted(os.listdir(INBOX)):
@@ -86,14 +88,15 @@ def find_open():
             path = os.path.join(gdir, name)
             if is_resolved(path):
                 continue
-            open_notes.append((group, name, path))
+            rel = os.path.relpath(path, VAULT)
+            open_notes[rel] = (group, name, path)
     return open_notes
 
 
 def recent_completions(days=2):
-    """Pull shipped lines from each group's completions file, tagged recent."""
+    """Return {snippet: group} for completion lines dated within the window."""
     cutoff = datetime.date.today() - datetime.timedelta(days=days)
-    recent = []
+    recent = {}
     for grp, fname in COMPLETION_FILES.items():
         fpath = os.path.join(HANDOFFS, fname)
         if not os.path.isfile(fpath):
@@ -104,7 +107,6 @@ def recent_completions(days=2):
             line = line.strip()
             if not line.startswith("-"):
                 continue
-            # look for a date in the line
             m = re.search(r"(20\d\d-\d\d-\d\d)", line)
             if m:
                 try:
@@ -112,12 +114,30 @@ def recent_completions(days=2):
                 except ValueError:
                     continue
                 if d >= cutoff:
-                    recent.append((grp, line))
+                    snippet = line.lstrip("- ").strip()
+                    key = (grp, snippet[:120])
+                    recent[key] = grp
     return recent
 
 
+def load_state():
+    try:
+        with open(STATE_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def save_state(state):
+    try:
+        with open(STATE_PATH, "w", encoding="utf-8") as f:
+            json.dump(state, f)
+    except OSError:
+        pass
+
+
 def main():
-    global VAULT, VAULT_NAME
+    global VAULT, INBOX, HANDOFFS, VAULT_NAME, STATE_PATH
     argv = sys.argv[1:]
     days = 2
     while argv:
@@ -126,37 +146,67 @@ def main():
             days = int(argv.pop(0))
         elif a == "--vault-name" and argv:
             VAULT_NAME = argv.pop(0)
+        elif a == "--state" and argv:
+            STATE_PATH = argv.pop(0)
         elif a.startswith("/") and os.path.isdir(a):
             VAULT = a
             INBOX = os.path.join(VAULT, "01-HANDOFFS", "INBOX")
     HANDOFFS = os.path.join(VAULT, "01-HANDOFFS")
 
+    prev = load_state()
+    prev_open = set(prev.get("open", []))
+    # completions are stored as [grp, snippet] lists in JSON; convert to tuples
+    prev_completions = set(tuple(c) if isinstance(c, list) else c
+                           for c in prev.get("completions", []))
+
+    cur_open = find_open()          # rel -> (group, name, path)
+    cur_open_keys = set(cur_open.keys())
+    cur_completions = recent_completions(days)
+    cur_completion_keys = set(cur_completions.keys())
+
     lines = []
 
-    open_notes = find_open()
-    if open_notes:
-        lines.append("📥 OPEN handoffs — pick these up:")
-        for grp, name, path in open_notes:
-            rel = os.path.relpath(path, VAULT)
+    # NEW open handoffs (not in previous state)
+    new_open = cur_open_keys - prev_open
+    if new_open:
+        lines.append("🆕 NEW handoffs:")
+        for rel in sorted(new_open):
+            grp, name, path = cur_open[rel]
             lines.append(f"• [{grp}] {name}")
             lines.append(f"    {obsidian_link(rel)}")
 
-    done = recent_completions(days)
-    if done:
+    # RESOLVED handoffs (were in prev open, now gone -> cleared)
+    resolved = prev_open - cur_open_keys
+    if resolved:
         lines.append("")
-        lines.append(f"✅ HANDLED (last {days}d):")
-        for grp, line in done:
-            snippet = line.lstrip("- ").strip()
-            if len(snippet) > 100:
-                snippet = snippet[:100] + "…"
+        lines.append(f"✅ CLEARED ({len(resolved)}):")
+        for rel in sorted(resolved):
+            # show a friendly label from previous (we only stored rel)
+            name = rel.split("/")[-1]
+            lines.append(f"• {name}")
+
+    # NEW completions
+    new_completions = cur_completion_keys - prev_completions
+    if new_completions:
+        lines.append("")
+        lines.append("🔧 NEW completions:")
+        for (grp, snippet) in sorted(new_completions):
+            if len(snippet) > 120:
+                snippet = snippet[:120] + "…"
             lines.append(f"• [{grp}] {snippet}")
 
+    # Update state
+    save_state({"open": sorted(cur_open_keys), "completions": sorted(cur_completion_keys)})
+
     if not lines:
+        # nothing changed — print nothing (silent)
         return 0
 
     print("\n".join(lines))
     return 0
 
+
+import datetime
 
 if __name__ == "__main__":
     sys.exit(main())

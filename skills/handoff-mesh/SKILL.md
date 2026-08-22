@@ -1,7 +1,7 @@
 ---
 name: handoff-mesh
 description: "Built-in communication layer for multi-agent setups. Full-mesh handoff folders (any agent can hand off to any other), an hourly watcher that surfaces open handoffs, weekly archive cleanup, and a completion-reporting loop so every handoff is handled AND verified. The durable 'brain' counterpart to real-time channels like Buzz."
-version: 1.1.0
+version: 1.2.0
 author: Gentech
 tags: [handoff, coordination, multi-agent, mesh, inbox, communication, vault]
 license: MIT
@@ -84,15 +84,27 @@ Nightly/weekly maintenance:
 `handoff-watcher.py` (stdlib-only, stable output — safe as a `monitor_script`):
 - Lists every `<group>/` subfolder under `INBOX/`.
 - Finds `*.md` notes NOT in `_archive/` and NOT marked resolved.
-- Emits a short, stable report of OPEN handoffs (or nothing if all clear).
-- **Also surfaces recent completions** (`✅ HANDLED last 2d`) by scanning each
-  group's `<group>-completions.md` — so you see what agents actually shipped,
-  not just what's open. Add `--days N` to widen the window.
+- **STATEFUL — reports only NEW changes.** It keeps a state file
+  (`handoff-watcher.state.json`) of what it already reported, and only prints:
+  - 🆕 NEW open handoffs (appeared since last run)
+  - ✅ CLEARED handoffs (were open, now resolved)
+  - 🔧 NEW recent completions (`--days N`)
+- **Silent when nothing changed** — if no handoff appeared/cleared and no new
+  completion, it prints NOTHING, so the cron stays quiet until there's a real
+  signal. This is the watchdog pattern: report only what's new, not everything
+  every time.
+- **Also surfaces recent completions** by scanning each group's
+  `<group>-completions.md` — so you see what agents actually shipped, not just
+  what's open. Add `--days N` to widen the window.
 - **Tappable Obsidian deep-links** — every open handoff prints an
   `obsidian://open?vault=NAME&file=...` link that opens the note in the
   user's Obsidian app. Set your vault name via `--vault-name NAME` (or edit
   `VAULT_NAME` in the script). The links only open if the note has synced to
   the device (Obsidian Sync) first.
+
+Wire it as a `no_agent` cron with the **empty-stdout = silent** semantics:
+non-empty output is delivered, empty output posts nothing. State file keeps it
+quiet between genuine changes.
 
 Example:
 ```bash

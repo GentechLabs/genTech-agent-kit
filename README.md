@@ -46,6 +46,7 @@ npx skills add ProtoJay4789/genTech-agent-kit --skill x402-payments
 npx skills add ProtoJay4789/genTech-agent-kit --skill robinhood-chain
 npx skills add ProtoJay4789/genTech-agent-kit --skill output-enforcer
 npx skills add ProtoJay4789/genTech-agent-kit --skill context-cycle-proactive
+npx skills add ProtoJay4789/genTech-agent-kit --skill handoff-mesh
 ```
 
 ---
@@ -82,6 +83,7 @@ Witness log auto-fed from context-weight nightly. No bookkeeping theatre (Articl
 | **wakeup-protocol** | Session wakeup — loads .env, reports configured services |
 | **context-cycle-proactive** | Save → route → load → resume at 80-90% context; keeps every agent synced to the second brain |
 | **safe-update-restart** | Safe update/restart for a production VPS: backup → controlled window → restart → verify every service & endpoint after |
+| **handoff-mesh** | Built-in communication layer for multi-agent setups: full-mesh handoff folders, hourly watcher, weekly archive cleanup, and a completion-reporting loop so every handoff is handled AND verified |
 
 ### Modules
 

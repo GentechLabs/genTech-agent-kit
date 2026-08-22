@@ -1,7 +1,7 @@
 ---
 name: handoff-mesh
 description: "Built-in communication layer for multi-agent setups. Full-mesh handoff folders (any agent can hand off to any other), an hourly watcher that surfaces open handoffs, weekly archive cleanup, and a completion-reporting loop so every handoff is handled AND verified. The durable 'brain' counterpart to real-time channels like Buzz."
-version: 1.0.0
+version: 1.1.0
 author: Gentech
 tags: [handoff, coordination, multi-agent, mesh, inbox, communication, vault]
 license: MIT
@@ -85,6 +85,57 @@ Nightly/weekly maintenance:
 - Lists every `<group>/` subfolder under `INBOX/`.
 - Finds `*.md` notes NOT in `_archive/` and NOT marked resolved.
 - Emits a short, stable report of OPEN handoffs (or nothing if all clear).
+- **Also surfaces recent completions** (`✅ HANDLED last 2d`) by scanning each
+  group's `<group>-completions.md` — so you see what agents actually shipped,
+  not just what's open. Add `--days N` to widen the window.
+- **Tappable Obsidian deep-links** — every open handoff prints an
+  `obsidian://open?vault=NAME&file=...` link that opens the note in the
+  user's Obsidian app. Set your vault name via `--vault-name NAME` (or edit
+  `VAULT_NAME` in the script). The links only open if the note has synced to
+  the device (Obsidian Sync) first.
+
+Example:
+```bash
+# Daily window of 2 days, vault named "gentech":
+python3 handoff-watcher.py --days 2 --vault-name gentech
+```
+
+## Second Brain Setup Preset — wire a new agent's brain in one go
+Use this when someone adds a **new agent / second brain** to an existing
+fleet. It wires the full mesh so the new agent reads and acts on handoffs
+automatically, out of the box:
+
+1. **Create the inbox lanes** for the new agent under `01-HANDOFFS/INBOX/`:
+   ```
+   01-HANDOFFS/INBOX/<newgroup>/
+       _archive/          # resolved notes (auto-moved, purged weekly)
+   ```
+   Add `<newgroup>` to `KNOWN_GROUPS` in `handoff-watcher.py`.
+
+2. **Create the completion file** so the watcher can report what this agent ships:
+   `01-HANDOFFS/<newgroup>-completions.md` (start with `# <Group> Completions`).
+
+3. **Install the skill** on the new profile:
+   ```bash
+   # copy the whole handoff-mesh skill dir into the new profile's skills
+   cp -r skills/handoff-mesh /root/.hermes/profiles/<new>/skills/
+   ```
+   Copy `scripts/handoff-watcher.py` to `/root/.hermes/profiles/<new>/scripts/`.
+
+4. **Wire the cron** (`no_agent`, pure script, zero tokens). Create with
+   Hermes cron, `script=handoff-watcher.py`, `deliver=origin`, schedule
+   `*/15 11-23,0-3 * * *` (every 15 min, 7 AM–11 PM ET) — or any waking-hours
+   cadence. Set `--vault-name <your-vault>` in the script args so the links
+   open correctly.
+
+5. **Consolidate with wake-up**: patch the new profile's wake-up-protocol
+   Step 3 to (a) check the INBOX for open handoffs, and (b) report a
+   completion note back to the sender before marking resolved. This makes the
+   loop (read → act → report → resolve) run on every session start.
+
+Once wired, the new agent's watcher fires every 15 min, surfaces open handoffs
+with tappable Obsidian links + recent completions, and the agent's wake-up
+closes the loop — all fleet-wide, all zero-token.
 
 ## Decision Table
 | Situation | Action |

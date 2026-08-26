@@ -94,6 +94,18 @@ Session handoff notes for context preservation. Format:
 - List of changes
 ```
 
+### Inter-Agent Handoff (full mesh)
+Beyond session notes, agents hand work to each other via the vault's
+`01-HANDOFFS/INBOX/<target>/` folders. **Any agent can initiate a handoff to any
+peer** (Forge, Labs, Treasury, Entertainment, HQ) — not just respond to one. To
+send work onward, write a dated `<YYYY-MM-DD>-<topic>.md` note into
+`INBOX/<target>/` with `**From:** <you>`, `**To:** <target>`, `**Status:** open`,
+and a `## What's needed` section, then commit + push. Never hand off to a peer
+without writing the note to their INBOX folder — the watcher and the target's
+wake trigger surface it from there. On completion, report back to the original
+sender's return lane with three sections: `## ✅ What was done`,
+`## 📌 What you should know`, `## ⏭️ What's next`.
+
 ## Rules
 
 1. **Green Room** = ideas only, not active work

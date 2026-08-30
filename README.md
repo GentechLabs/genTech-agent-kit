@@ -84,6 +84,7 @@ Witness log auto-fed from context-weight nightly. No bookkeeping theatre (Articl
 | **context-cycle-proactive** | Save → route → load → resume at 80-90% context; keeps every agent synced to the second brain |
 | **safe-update-restart** | Safe update/restart for a production VPS: backup → controlled window → restart → verify every service & endpoint after |
 | **handoff-mesh** | Built-in communication layer for multi-agent setups: full-mesh handoff folders, 15-min watcher (open handoffs + recent completions + tappable Obsidian deep-links), weekly archive cleanup, and a completion-reporting loop so every handoff is handled AND verified. Includes a second-brain setup preset to wire a new agent's brain in one go |
+| **fed-council** | Fleet identity + synthesis layer: your agents deliberate as a governing council (Chair, Steward, Governors — names stay, personality layers on), the overnight maintenance force runs as the **Council Overnight Session**, and a nightly synthesis loop turns stored-but-forgotten notes into **Council Minutes** — clusters, completions, and retirements — so ideas finish other ideas instead of dying in the vault. Includes the Elder Statesman Chair voice spec (ElevenLabs, radio post-chain) and member onboarding steps |
 
 ### Modules
 

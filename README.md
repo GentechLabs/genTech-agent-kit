@@ -2,10 +2,10 @@
 
 **One install. Full stack. Your agent, running.**
 
-[![Release](https://img.shields.io/github/v/release/ProtoJay4789/genTech-agent-kit?style=flat&label=release)](https://github.com/ProtoJay4789/genTech-agent-kit/releases)
-[![License](https://img.shields.io/github/license/ProtoJay4789/genTech-agent-kit?style=flat)](LICENSE)
-[![Language](https://img.shields.io/github/languages/top/ProtoJay4789/genTech-agent-kit?style=flat)](https://github.com/ProtoJay4789/genTech-agent-kit/tree/main)
-[![Skills](https://img.shields.io/badge/skills-npx%20install-blue?style=flat)](https://github.com/ProtoJay4789/genTech-agent-kit/tree/main/skills)
+[![Release](https://img.shields.io/github/v/release/GentechLabs/genTech-agent-kit?style=flat&label=release)](https://github.com/GentechLabs/genTech-agent-kit/releases)
+[![License](https://img.shields.io/github/license/GentechLabs/genTech-agent-kit?style=flat)](LICENSE)
+[![Language](https://img.shields.io/github/languages/top/GentechLabs/genTech-agent-kit?style=flat)](https://github.com/GentechLabs/genTech-agent-kit/tree/main)
+[![Skills](https://img.shields.io/badge/skills-npx%20install-blue?style=flat)](https://github.com/GentechLabs/genTech-agent-kit/tree/main/skills)
 [![x402](https://img.shields.io/badge/payments-x402-8A2BE2?style=flat)](https://www.x402.org)
 [![Q402](https://img.shields.io/badge/gasless-Q402-00D4AA?style=flat)](https://q402.quackai.ai)
 [![Self-Evolution](https://img.shields.io/badge/evolve-harness-FF6B9D?style=flat)](https://github.com/erenciracioglu-dotcom/hermes-self-evolution)
@@ -14,7 +14,7 @@
 The GenTech Agent Kit packages the entire GenTech stack into a single installable MCP server. One command gives any AI agent real-time market data, DeFi intelligence, payment rails, agent identity infrastructure, and self-evolution capabilities.
 
 ```bash
-uvx --from git+https://github.com/ProtoJay4789/genTech-agent-kit.git gentech-kit
+uvx --from git+https://github.com/GentechLabs/genTech-agent-kit.git gentech-kit
 ```
 
 **Requires:** Hermes Agent v0.19.0+ | CMC_API_KEY env var (free at coinmarketcap.com/api)
@@ -25,7 +25,7 @@ uvx --from git+https://github.com/ProtoJay4789/genTech-agent-kit.git gentech-kit
 
 ```bash
 # Install and run
-uvx --from git+https://github.com/ProtoJay4789/genTech-agent-kit.git gentech-kit
+uvx --from git+https://github.com/GentechLabs/genTech-agent-kit.git gentech-kit
 
 # Set your API key
 export CMC_API_KEY="your-key-here"
@@ -39,14 +39,14 @@ The MCP server starts and exposes all GenTech tools to your agent.
 
 ```bash
 # Main skill
-npx skills add ProtoJay4789/genTech-agent-kit
+npx skills add GentechLabs/genTech-agent-kit
 
 # Specific skills
-npx skills add ProtoJay4789/genTech-agent-kit --skill x402-payments
-npx skills add ProtoJay4789/genTech-agent-kit --skill robinhood-chain
-npx skills add ProtoJay4789/genTech-agent-kit --skill output-enforcer
-npx skills add ProtoJay4789/genTech-agent-kit --skill context-cycle-proactive
-npx skills add ProtoJay4789/genTech-agent-kit --skill handoff-mesh
+npx skills add GentechLabs/genTech-agent-kit --skill x402-payments
+npx skills add GentechLabs/genTech-agent-kit --skill robinhood-chain
+npx skills add GentechLabs/genTech-agent-kit --skill output-enforcer
+npx skills add GentechLabs/genTech-agent-kit --skill context-cycle-proactive
+npx skills add GentechLabs/genTech-agent-kit --skill handoff-mesh
 ```
 
 ---
@@ -132,7 +132,7 @@ GITHUB_TOKEN=your-github-token
 | Pay Wallet (Solana) | pX1FTLyXAskfD4y8pRwx7Go58GpM9t2PtGZGj6Lq2hR |
 | TREASURY Token | 0x56D03C0f4167cC2c26B781dE47E608d660F13ba3 |
 | Primary Wallet | 0x7ebff188f2Eba16518C02864589b1403a5d1296a |
-| GenTech Shop | glama.ai/mcp/servers/ProtoJay4789/genTech-shop |
+| GenTech Shop | glama.ai/mcp/servers/GentechLabs/genTech-shop |
 | Investor Deck | gentechlabs.net/grant.html |
 
 ---

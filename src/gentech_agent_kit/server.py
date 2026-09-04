@@ -282,7 +282,7 @@ def kit_info() -> str:
         "plugins": len(plugins),
         "plugins_list": [p.get("name") for p in plugins],
         "updates": "Always receiving updates — run `uv tool install --reinstall` to get the latest",
-        "docs": "https://github.com/ProtoJay4789/genTech-agent-kit",
+        "docs": "https://github.com/GentechLabs/genTech-agent-kit",
     }, indent=2)
 
 

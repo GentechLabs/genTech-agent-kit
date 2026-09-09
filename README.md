@@ -107,6 +107,29 @@ Witness log auto-fed from context-weight nightly. No bookkeeping theatre (Articl
 
 ---
 
+## Discover the Gateway
+
+The GenTech Labs x402 Gateway is listed on **PayAPI Market** (verified, free discovery — buyers still pay your wallet directly). Agents can find the route from the warehouse as well as from this repo:
+
+- **Search:** https://payapi.market/mcp
+- **Listing:** https://payapi.market/api/gentech-labs-x402-gateway
+
+Paste into **Claude Desktop** or **Cursor**:
+
+```json
+{
+  "mcpServers": {
+    "payapi": {
+      "url": "https://payapi.market/mcp"
+    }
+  }
+}
+```
+
+Also discoverable via the gateway's own discovery docs: `https://api.gentechlabs.net/.well-known/x402` and `https://api.gentechlabs.net/agent-card.json`.
+
+---
+
 ## Environment Variables
 
 ```bash

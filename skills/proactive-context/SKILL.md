@@ -37,6 +37,29 @@ When ending a session or context is tight, write to `11-Mess Hall/YYYY-MM-DD-han
 - List of files that were changed
 ```
 
+## Agent Activation via Peer Transport
+
+Context is no longer a passive accumulate-then-prune problem. **`hermes peer dm`
+spawns a real turn in the target agent** — the active-memory layer. Wake another
+agent only when there's something to act on:
+
+```bash
+hermes -p <my-profile> peer dm <target> "Pick up the open handoff at <path> — <task>"
+```
+
+- Handoffs (vault) = durable record; peer DM = live wake-up that proves the
+  agent acted (synchronous reply).
+- Each profile needs a distinct `api_server.port` (gentech 8642, treasury 8643,
+  gizmo 8644, pixel 8645) + a strong `API_SERVER_KEY`, then a gateway restart
+  (from a separate shell — the gateway SIGTERMs children).
+- **Bot Chat bloat pitfall:** a peer DM targets the canonical "Bot Chat" session,
+  which doesn't auto-reset and can exceed the compressible context ceiling. Reset
+  it when you see "Context length exceeded":
+  `hermes -p <profile> sessions rename <id> "__archived-bot-chat"` then
+  `hermes -p <profile> sessions archive --title "__archived-bot-chat" --yes`.
+  Recoverable, nothing deleted.
+- Full reference: `docs/peer-transport-and-activation.md`.
+
 ## Memory Bar Rule
 
 Only show `[🧠 XX%]` when memory is 80-100% full. Don't show it below 80%.

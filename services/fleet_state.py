@@ -29,6 +29,14 @@ RESOLVED_MARKERS = (
 
 TO_LANE_RE = re.compile(r"^(.+)-to-(.+)$")
 
+# Async / manual lanes — NO live consumer exists, so age is NOT a stall signal.
+# `gentech-to-forge` targets Forge, a DESKTOP agent: he is not on the peer
+# network, has no wake cron, and only reads his inbox when Jordan runs a
+# session at the machine. Items here are "awaiting Forge's next session",
+# not "an agent went silent" — counting them as stalled is a false alarm and
+# hides the real ones (Jordan, Sep 11 2026).
+ASYNC_LANES = {"gentech-to-forge", "INBOX/forge"}
+
 
 def norm(text):
     low = text.lower()
@@ -95,6 +103,7 @@ def scan_open_handoffs():
             "file": name,
             "age_hours": age_hours(datetime.datetime.fromtimestamp(st.st_mtime, datetime.timezone.utc)),
             "size": st.st_size,
+            "async": lane in ASYNC_LANES,
         })
 
     scan_dir(HANDOFFS, False)
@@ -166,9 +175,12 @@ def main():
         "open_handoffs": scan_open_handoffs(),
     }
     open_h = state["open_handoffs"]
+    active = [h for h in open_h if not h.get("async")]
     state["summary"] = {
         "open_handoffs": len(open_h),
-        "stalled_handoffs": len([h for h in open_h if h["age_hours"] >= 6]),
+        "active_handoffs": len(active),
+        "stalled_handoffs": len([h for h in active if h["age_hours"] >= 6]),
+        "async_handoffs": len([h for h in open_h if h.get("async")]),
         "queue_open": state["queue"]["open"],
         "decisions_waiting": state["queue"]["needs_jordan"],
     }

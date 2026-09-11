@@ -32,6 +32,21 @@ STATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "handoff-w
 
 KNOWN_GROUPS = {"hq", "forge", "labs", "entertainment", "treasury", "gizmo"}
 
+# Lanes that belong to a HUMAN. A handoff landing here is news; a handoff moving
+# between two agents is transit — the agents' business, not Jordan's.
+HUMAN_LANES = {"hq", "jordan", "jintech"}
+
+# An open handoff older than this (by filename date) with no return note is
+# STUCK — that is the thing worth interrupting a human for.
+STUCK_AFTER_HOURS = 24
+
+# Only report stuck items in lanes this seat owns ([] = all non-human lanes).
+OWN_LANES = []
+
+# Re-nag the same stuck item at most once per day, and cap the list per run.
+STUCK_RENAG_HOURS = 24
+MAX_STUCK_PER_RUN = 5
+
 RESOLVED_MARKERS = (
     "status: [x]",
     "status: resolved",
@@ -166,37 +181,84 @@ def main():
 
     lines = []
 
-    # NEW open handoffs (not in previous state)
+    # ── Report EXCEPTIONS, not TRANSIT ──────────────────────────────────────
+    # Jordan (Sep 11): "It's just telling me that the message was sent."
+    # A handoff moving between two agents is not news — it is the system
+    # working. Only two things earn a human's attention:
+
+    # (1) NEW handoffs ADDRESSED TO A HUMAN. These are actually for Jordan.
     new_open = cur_open_keys - prev_open
-    if new_open:
-        lines.append("🆕 NEW handoffs:")
-        for rel in sorted(new_open):
+    human_new = [r for r in new_open if cur_open[r][0] in HUMAN_LANES]
+    if human_new:
+        lines.append("📨 FOR YOU:")
+        for rel in sorted(human_new):
             grp, name, path = cur_open[rel]
-            lines.append(f"• [{grp}] {name}")
+            lines.append(f"• {name}")
             lines.append(f"    {obsidian_link(rel)}")
 
-    # RESOLVED handoffs (were in prev open, now gone -> cleared)
-    resolved = prev_open - cur_open_keys
-    if resolved:
-        lines.append("")
-        lines.append(f"✅ CLEARED ({len(resolved)}):")
-        for rel in sorted(resolved):
-            # show a friendly label from previous (we only stored rel)
-            name = rel.split("/")[-1]
-            lines.append(f"• {name}")
+    # (2) STUCK items — open a long time with no return. These need chasing, and
+    #     they are the reason a human would want to be interrupted at all.
+    now = datetime.datetime.now()
 
-    # NEW completions
-    new_completions = cur_completion_keys - prev_completions
-    if new_completions:
+    # Only report stuck items in lanes this seat owns. Without this, every agent
+    # scans the same vault and mails the same vault-wide list — three copies of
+    # one fact. Empty OWN_LANES = every non-human lane (kit default).
+    # Never re-nag the same item more than once per day: a NEW stuck item alerts
+    # immediately; an OLD one reminds daily, not every 15 minutes.
+    prev_nagged = prev.get("stuck_nagged", {}) or {}
+
+    stuck = []
+    for rel in sorted(cur_open_keys):
+        grp, name, path = cur_open[rel]
+        if grp in HUMAN_LANES:
+            continue                      # already surfaced above, as yours
+        if OWN_LANES and grp not in OWN_LANES:
+            continue                      # not this seat's lane
+        m = re.match(r"^(20\d\d-\d\d-\d\d)", name)
+        if not m:
+            continue
+        try:
+            opened = datetime.datetime.strptime(m.group(1), "%Y-%m-%d")
+        except ValueError:
+            continue
+        age_h = (now - opened).total_seconds() / 3600
+        if age_h < STUCK_AFTER_HOURS:
+            continue
+        last = prev_nagged.get(rel)
+        if last:
+            try:
+                since_h = (now - datetime.datetime.fromisoformat(last)).total_seconds() / 3600
+                if since_h < STUCK_RENAG_HOURS:
+                    continue          # already nagged recently — stay quiet
+            except ValueError:
+                pass
+        stuck.append((int(age_h // 24), grp, name, rel))
+
+    cur_nagged = {rel: now.isoformat() for _, _, _, rel in stuck}
+
+    if stuck:
+        total = len(stuck)
+        shown = stuck[:MAX_STUCK_PER_RUN]
         lines.append("")
-        lines.append("🔧 NEW completions:")
-        for (grp, snippet) in sorted(new_completions):
-            if len(snippet) > 120:
-                snippet = snippet[:120] + "…"
-            lines.append(f"• [{grp}] {snippet}")
+        lines.append("\U0001f6a9 STUCK (%d \u2014 open >%dh, no return):" % (total, STUCK_AFTER_HOURS))
+        for days, grp, name, rel in shown:
+            lines.append("\u2022 [%s] %dd \u2014 %s" % (grp, days, name))
+            lines.append("    " + obsidian_link(rel))
+        if total > len(shown):
+            lines.append("    \u2026and %d more (see INBOX/)" % (total - len(shown)))
+
+    # CLEARED and NEW-completions lines are deliberately GONE: they are transit
+    # and vanity respectively. Completions belong in the daily wrap, not a
+    # real-time ping. An alert that fires when nothing is wrong trains people
+    # to ignore the one that matters.
 
     # Update state
-    save_state({"open": sorted(cur_open_keys), "completions": sorted(cur_completion_keys)})
+    merged_nagged = {k: v for k, v in (prev.get("stuck_nagged", {}) or {}).items()
+                     if k in cur_open_keys and k not in cur_nagged}
+    merged_nagged.update(cur_nagged)
+    save_state({"open": sorted(cur_open_keys),
+                "completions": sorted(cur_completion_keys),
+                "stuck_nagged": merged_nagged})
 
     if not lines:
         # nothing changed — print nothing (silent)

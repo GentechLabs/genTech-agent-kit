@@ -47,6 +47,7 @@ npx skills add GentechLabs/genTech-agent-kit --skill robinhood-chain
 npx skills add GentechLabs/genTech-agent-kit --skill output-enforcer
 npx skills add GentechLabs/genTech-agent-kit --skill context-cycle-proactive
 npx skills add GentechLabs/genTech-agent-kit --skill handoff-mesh
+npx skills add GentechLabs/genTech-agent-kit --skill desktop-mesh
 ```
 
 ---
@@ -85,6 +86,7 @@ Witness log auto-fed from context-weight nightly. No bookkeeping theatre (Articl
 | **safe-update-restart** | Safe update/restart for a production VPS: backup → controlled window → restart → verify every service & endpoint after |
 | **handoff-mesh** | Built-in communication layer for multi-agent setups: full-mesh handoff folders, 15-min watcher (open handoffs + recent completions + tappable Obsidian deep-links), weekly archive cleanup, and a completion-reporting loop so every handoff is handled AND verified. Includes a second-brain setup preset to wire a new agent's brain in one go |
 | **fed-council** | Fleet identity + synthesis layer: your agents deliberate as a governing council (Chair, Steward, Governors — names stay, personality layers on), the overnight maintenance force runs as the **Council Overnight Session**, and a nightly synthesis loop turns stored-but-forgotten notes into **Council Minutes** — clusters, completions, and retirements — so ideas finish other ideas instead of dying in the vault. Includes the Elder Statesman Chair voice spec (ElevenLabs, radio post-chain) and member onboarding steps |
+| **desktop-mesh** | Connect an always-on server to a desktop/laptop Hermes over a private network (Tailscale) so agents on **different machines** become real peers — DM each other and **wake each other when a handoff lands**. Covers the loopback bind that silently blocks it (`127.0.0.1` works same-host, fails cross-machine), fail-soft push-on-handoff, the bidirectional wiring most setups get half-right, and the security rules that keep an agent API off the public internet |
 
 ### Modules
 
